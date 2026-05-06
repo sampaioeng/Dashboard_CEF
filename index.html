@@ -1934,9 +1934,15 @@ async function saveDrawerEdits(){
   inputs.forEach(inp=>{
     const col=inp.dataset.col;if(!col)return;
     let val=inp.value.trim();
-    if(inp.dataset.field==='va'&&val)val=`R$ ${parseFloat(val).toFixed(2).replace('.',',')}`;
+    if(inp.dataset.field=='va'){val=val==='' ? '' : (`R$ ${parseFloat(val||0).toFixed(2).replace('.',',')}`);updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});return;}
     if(val)updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});
   });
+
+
+
+
+
+
   // Recalcula vOS (R), vDesloc (S) e vTotal (T) com base em atividade, município e deslocamento especial
   const espEl=document.getElementById('e-esp');
   if(espEl){
@@ -2498,7 +2504,7 @@ function showContato(nome,tel){
   sec.style.display='block';
 }
 function mes2pasta(mes){if(!mes)return null;const MESES_EXT={'janeiro':'Janeiro','fevereiro':'Fevereiro','março':'Março','abril':'Abril','maio':'Maio','junho':'Junho','julho':'Julho','agosto':'Agosto','setembro':'Setembro','outubro':'Outubro','novembro':'Novembro','dezembro':'Dezembro','jan':'Janeiro','fev':'Fevereiro','mar':'Março','abr':'Abril','mai':'Maio','jun':'Junho','jul':'Julho','ago':'Agosto','set':'Setembro','out':'Outubro','nov':'Novembro','dez':'Dezembro'};const s=mes.replace('.','');const p=s.split('-');if(p.length!==2)return null;const aa=p[1].length===2?'20'+p[1]:p[1];const nm=MESES_EXT[p[0].toLowerCase()];return nm?nm+' '+aa:null;}
-function nomePasta(item,atv,osp){return`${item}-${osp.replace(/[.\-\/]/g,'')}-${atv}`;}
+function nomePasta(item,atv,osp){return`${item}-${osp.replace(/\//g,'')}-${atv}`;}
 async function loadDrive(r){
   const ld=document.getElementById('d-dload'),ct=document.getElementById('d-dcont'),wn=document.getElementById('d-dwarn'),pt=document.getElementById('d-dpath'),fl=document.getElementById('d-folders');
   ld.style.display='flex';ct.style.display='none';wn.style.display='none';
