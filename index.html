@@ -1361,7 +1361,7 @@ const MOS_ORD_IDX=m=>MES_ORD.indexOf(m)<0?99:MES_ORD.indexOf(m);
 function getMesAtual(){const now=new Date();const m=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];return m[now.getMonth()]+'-'+String(now.getFullYear()).slice(2);}
 function normalizaMes(m){if(!m)return'';const s=String(m).trim().replace('.','');if(/^\d{4}-\d{2}$/.test(s)){const[ano,mes]=s.split('-');const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];const idx=parseInt(mes,10)-1;if(idx>=0&&idx<12)return meses[idx]+'-'+ano.slice(2);}if(/^[a-z]{3}-\d{4}$/i.test(s)){const[mes,ano]=s.split('-');return mes.toLowerCase()+'-'+ano.slice(2);}return s;}
 function converterMesParaSalvar(m){if(!m)return'';const s=String(m).trim();if(/^\d{4}-\d{2}$/.test(s)){const[ano,mes]=s.split('-');const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];const idx=parseInt(mes,10)-1;if(idx>=0&&idx<12)return meses[idx]+'-'+ano.slice(2);}return s;}
-function normalizaDataEntrega(d){if(!d)return'';const s=String(d).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s)){const[ano,mes,dia]=s.split('-');return`${dia}/${mes}/${ano}`;}if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){const[mm,dd,aaaa]=s.split('/');return`${dd.padStart(2,'0')}/${mm.padStart(2,'0')}/${aaaa}`;}return s;}
+function normalizaDataEntrega(d){if(!d)return'';const s=String(d).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s)){const[ano,mes,dia]=s.split('-');return`${dia}/${mes}/${ano}`;}if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){return s;}return s;}
 function parseRow(r,i){return{ri:i+2,item:P(r[0]),os:P(r[1]),osp:P(r[1]),aceita:B(r[2]),atv:P(r[3]),tv:P(r[4]),mun:P(r[5]),bairro:P(r[6]),tip:P(r[7]),end:P(r[8]),area:P(r[9]),mes:normalizaMes(P(r[10])),siopi:normalizaDataEntrega(P(r[12])),pept:B(r[13]),ent:normalizaDataEntrega(P(r[14])),vis:B(r[15]),lau:B(r[16]),fich:false,vos:pBRL(r[17]),vd:pBRL(r[18]),vt:pBRL(r[19]),st:P(r[20]),va:pBRL(r[21]),rsm:P(r[22]),rev:B(r[23]),abr:P(r[24]),prz:P(r[25]),polo:'',cep:'',ord:P(r[0])};}
 function stCfg(r){if(r.rev)return{cls:'st-revisao',bg:'#9333ea',lbl:'Em revisão'};return STCFG[r.st]||{cls:'',bg:'#475569',lbl:r.st||'—'};}
 function badge(r){const c=stCfg(r);return`<span class="badge" style="background:${c.bg}">${c.lbl}</span>`;}
@@ -2178,7 +2178,7 @@ async function acharPasta02Documentos(os){
     let r2=await gapi.client.drive.files.list({q:`name='${np}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
     if(!r2.result.files.length){
       // Tenta buscar por prefixo
-      r2=await gapi.client.drive.files.list({q:`name contains '${os.osp.substring(0,18)}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
+      r2=await gapi.client.drive.files.list({q:`name contains '${os.item}-' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
     }
     if(!r2.result.files.length)return null;
     const osFolderId=r2.result.files[0].id;
@@ -2267,7 +2267,7 @@ async function excluirOS(){
             const mesFolderId=r1.result.files[0].id;
             let r2=await gapi.client.drive.files.list({q:`name='${np}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
             if(!r2.result.files.length){
-              r2=await gapi.client.drive.files.list({q:`name contains '${COS.osp.substring(0,18)}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
+              r2=await gapi.client.drive.files.list({q:`name contains '${COS.item}-' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)',pageSize:1});
             }
             if(r2.result.files.length) {
               const osFolderId=r2.result.files[0].id;
@@ -2517,7 +2517,7 @@ async function loadDrive(r){
     const fid=fp[0].id;
     const r2=await gapi.client.drive.files.list({q:`name='${np}' and '${fid}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:5});
     let op=r2.result.files||[];
-    if(!op.length){const r3=await gapi.client.drive.files.list({q:`name contains '${r.osp.substring(0,18)}' and '${fid}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:5});op=r3.result.files||[];}
+    if(!op.length){const r3=await gapi.client.drive.files.list({q:`name contains '${r.item}-' and '${fid}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:5});op=r3.result.files||[];}
     if(!op.length){warnD(ld,ct,pt,fl,wn,`Pasta "${np}" não encontrada em "${pf}".`,np,pf);return;}
     await renderSubs(op[0].id,op[0].name,pf,ld,ct,pt,fl,wn,r);
   }catch(e){warnD(ld,ct,pt,fl,wn,`Erro: ${e.message}`,np,pf);}
@@ -3198,11 +3198,12 @@ async function salvar(){
   const munNm=esp?`${mn} (Deslocamento especial)`:mn;
   const vo=parseFloat((document.getElementById('nvos').value||'0').replace(/\./g,'').replace(',','.'))||0;
   const vd=parseFloat((document.getElementById('nvd').value||'0').replace(/\./g,'').replace(',','.'))||0;
-  const novoItem=ALL.length+1;
-  const osp=os.replace(/[.\-\/]/g,'');
+  const novoItem=ALL.length>0?Math.max(...ALL.map(r=>parseInt(r.item)||0))+1:1;
+  const osp=os.replace(/\//g,'');
   const mes=converterMesParaSalvar(mesInput);
-  const dataEntrega=document.getElementById('nent').value; // Já está em formato dd/mm/aaaa
-  const row=[novoItem,os,osp,'TRUE',atv,document.getElementById('ntv').value,end,bairro,munNm,document.getElementById('npolo').value,cep,document.getElementById('ntip').value,area,mes,siopi,'FALSE',dataEntrega,'FALSE','FALSE','FALSE',`R$ ${vo.toFixed(2).replace('.',',')}`,`R$ ${vd.toFixed(2).replace('.',',')}`,`R$ ${(vo+vd).toFixed(2).replace('.',',')}`, 'Sem vistoria - não agendado','','','FALSE','','',''];
+  const dataEntrega=document.getElementById('nent').value;
+  // Ordem das colunas: Item, OS, OS Aceita, Atividade, Tipo vistoria, Município, Bairro, Tipologia, Endereço, Área, Mês, ART Mês, Entrada SIOPI, PEPT, Entrega, Vistoria, Laudo, Valor OS, Valor Desloc, Valor Total, Status OS, Valor avaliado, R$/m², Revisão, Abertura, Prazo
+  const row=[novoItem,os,'TRUE',atv,document.getElementById('ntv').value,munNm,bairro,document.getElementById('ntip').value,end,area,mes,'',siopi,'FALSE',dataEntrega,'FALSE','FALSE',`R$ ${vo.toFixed(2).replace('.',',')}`,`R$ ${vd.toFixed(2).replace('.',',')}`,`R$ ${(vo+vd).toFixed(2).replace('.',',')}`, 'Sem vistoria - não agendado','','','FALSE','',''];
   try{
     console.log('=== DEBUG SALVAR OS ===');
     console.log('Spreadsheet ID:', CFG.SID);
@@ -3509,7 +3510,7 @@ async function selecionarOsAgenda(r){
     if(!r2.result.files||!r2.result.files.length){
       console.log('[Agenda Tel] Tentando busca parcial...');
       r2=await gapi.client.drive.files.list({
-        q:`name contains '${r.osp.substring(0,18)}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        q:`name contains '${r.item}-' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         fields:'files(id,name)',
         pageSize:1
       });
@@ -3729,7 +3730,7 @@ async function gerarComprovantePDF(){
            osFolderId = r2.result.files[0].id;
         }else{
            // Fallback parcial igual ao drawer
-           const partialQ = `name contains '${AGENDA_SEL.osp.substring(0,15)}' and '${r1.result.files[0].id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+           const partialQ = `name contains '${AGENDA_SEL.item}-' and '${r1.result.files[0].id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
            const r2p = await gapi.client.drive.files.list({q: partialQ, fields: 'files(id)', pageSize: 1});
            if(r2p.result.files&&r2p.result.files.length) osFolderId = r2p.result.files[0].id;
         }
