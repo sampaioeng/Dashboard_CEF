@@ -936,35 +936,35 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
       <div class="df full">
         <div class="dl">Endereço</div>
         <div class="dv" id="d-end"></div>
-        <input class="dv-input" id="e-end" type="text" data-field="end" data-col="G">
+        <input class="dv-input" id="e-end" type="text" data-field="end" data-col="I">
       </div>
       <div class="df">
         <div class="dl">Bairro</div>
         <div class="dv" id="d-bairro"></div>
-        <input class="dv-input" id="e-bairro" type="text" data-field="bairro" data-col="H">
+        <input class="dv-input" id="e-bairro" type="text" data-field="bairro" data-col="G">
       </div>
       <div class="df">
         <div class="dl">Município</div>
         <div class="dv" id="d-mun"></div>
-        <input class="dv-input" id="e-mun" type="text" data-field="mun" data-col="I" list="ml-drawer" onclick="fp(this)" onblur="fpBlur(this)">
+        <input class="dv-input" id="e-mun" type="text" data-field="mun" data-col="F" list="ml-drawer" onclick="fp(this)" onblur="fpBlur(this)">
         <datalist id="ml-drawer"></datalist>
       </div>
       <div class="df">
         <div class="dl">CEP</div>
         <div class="dv" id="d-cep"></div>
-        <input class="dv-input" id="e-cep" type="text" data-field="cep" data-col="K">
+        <input class="dv-input" id="e-cep" type="text" data-field="cep" >
       </div>
       <div class="df">
         <div class="dl">Polo</div>
         <div class="dv" id="d-polo"></div>
-        <input class="dv-input" id="e-polo" type="text" data-field="polo" data-col="J" readonly>
+        <input class="dv-input" id="e-polo" type="text" data-field="polo"  readonly>
       </div>
     </div></div>
     <div class="ds"><h3>Imóvel</h3><div class="dg">
       <div class="df">
         <div class="dl">Tipologia</div>
         <div class="dv" id="d-tip"></div>
-        <select class="dv-input" id="e-tip" data-field="tip" data-col="L">
+        <select class="dv-input" id="e-tip" data-field="tip" data-col="H">
           <option>Apartamento</option><option>Casa</option><option>Casa comercial</option>
           <option>Obra Residencial</option><option>Terreno</option><option>Sala comercial</option>
           <option>Loja</option><option>Gleba</option>
@@ -973,12 +973,12 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
       <div class="df">
         <div class="dl">Área</div>
         <div class="dv" id="d-area"></div>
-        <input class="dv-input" id="e-area" type="text" data-field="area" data-col="M">
+        <input class="dv-input" id="e-area" type="text" data-field="area" data-col="J">
       </div>
       <div class="df">
         <div class="dl">Valor avaliado</div>
         <div class="dv" id="d-vaval"></div>
-        <input class="dv-input" id="e-vaval" type="number" step="0.01" data-field="va" data-col="Y">
+        <input class="dv-input" id="e-vaval" type="number" step="0.01" data-field="va" data-col="V">
       </div>
       <div class="df">
         <div class="dl">R$/m²</div>
@@ -989,17 +989,17 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
       <div class="df">
         <div class="dl">Entrada SIOPI</div>
         <div class="dv" id="d-siopi"></div>
-        <input class="dv-input" id="e-siopi" type="text" data-field="siopi" data-col="O">
+        <input class="dv-input" id="e-siopi" type="text" data-field="siopi" data-col="M">
       </div>
       <div class="df">
         <div class="dl">Entrega</div>
         <div class="dv" id="d-ent"></div>
-        <input class="dv-input" id="e-ent" type="text" data-field="ent" data-col="Q" readonly>
+        <input class="dv-input" id="e-ent" type="text" data-field="ent" data-col="O" readonly>
       </div>
       <div class="df">
         <div class="dl">Mês faturamento</div>
         <div class="dv" id="d-mes"></div>
-        <input class="dv-input" id="e-mes" type="text" data-field="mes" data-col="N">
+        <input class="dv-input" id="e-mes" type="text" data-field="mes" data-col="K">
       </div>
       <div class="df">
         <div class="dl">Revisão</div>
@@ -1030,7 +1030,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
       <div class="df">
         <div class="dl">Atividade</div>
         <div class="dv" id="d-atv"></div>
-        <select class="dv-input" id="e-atv" data-field="atv" data-col="E"></select>
+        <select class="dv-input" id="e-atv" data-field="atv" data-col="D"></select>
       </div>
     </div></div>
     <div class="ds"><h3>Complementos SIOPI</h3>
@@ -1937,9 +1937,7 @@ async function saveDrawerEdits(){
     if(inp.dataset.field==='va'&&val)val=`R$ ${parseFloat(val).toFixed(2).replace('.',',')}`;
     if(val)updates.push({range:`${CFG.SHT}!${col}${COS.ri}`,values:[[val]]});
   });
-  // Garante que polo seja salvo mesmo se input estiver readonly
-  if(munKey)updates.push({range:`${CFG.SHT}!J${COS.ri}`,values:[[MUN[munKey].polo]]});
-  // Recalcula vOS (U), vDesloc (V) e vTotal (W) com base em atividade, município e deslocamento especial
+  // Recalcula vOS (R), vDesloc (S) e vTotal (T) com base em atividade, município e deslocamento especial
   const espEl=document.getElementById('e-esp');
   if(espEl){
     const isEsp=espEl.value==='1';
@@ -1950,9 +1948,9 @@ async function saveDrawerEdits(){
     if(baseMun){
       // Mun: salva com ou sem sufixo de deslocamento especial
       const finalMunNm=isEsp?`${baseMun} (Deslocamento especial)`:baseMun;
-      const munUpdIdx=updates.findIndex(u=>u.range.endsWith(`!I${COS.ri}`));
+      const munUpdIdx=updates.findIndex(u=>u.range.endsWith(`!F${COS.ri}`));
       if(munUpdIdx>=0)updates[munUpdIdx].values=[[finalMunNm]];
-      else updates.push({range:`${CFG.SHT}!I${COS.ri}`,values:[[finalMunNm]]});
+      else updates.push({range:`${CFG.SHT}!F${COS.ri}`,values:[[finalMunNm]]});
       // vOS determinado pela atividade (ATV); fallback para valor já salvo se atividade desconhecida
       let vOS=COS.vos||0;
       const cfgAtv=ATV[atvNow];
@@ -1967,9 +1965,9 @@ async function saveDrawerEdits(){
         }
       }
       const fmt=v=>`R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-      updates.push({range:`${CFG.SHT}!U${COS.ri}`,values:[[fmt(vOS)]]});
-      updates.push({range:`${CFG.SHT}!V${COS.ri}`,values:[[fmt(vDesloc)]]});
-      updates.push({range:`${CFG.SHT}!W${COS.ri}`,values:[[fmt(vOS+vDesloc)]]});
+      updates.push({range:`${CFG.SHT}!R${COS.ri}`,values:[[fmt(vOS)]]});
+      updates.push({range:`${CFG.SHT}!S${COS.ri}`,values:[[fmt(vDesloc)]]});
+      updates.push({range:`${CFG.SHT}!T${COS.ri}`,values:[[fmt(vOS+vDesloc)]]});
     }
   }
   try{
@@ -3282,8 +3280,8 @@ async function updSt(ns){
       resource:{
         valueInputOption:'USER_ENTERED',
         data:[
-          {range:`${CFG.SHT}!U${COS.ri}:X${COS.ri}`, values:[[vOSFmt, vDeslocFmt, vTotalFmt, ns]]},
-          {range:`${CFG.SHT}!Z${COS.ri}:AA${COS.ri}`, values:[['', 'FALSE']]}
+          {range:`${CFG.SHT}!R${COS.ri}:U${COS.ri}`, values:[[vOSFmt, vDeslocFmt, vTotalFmt, ns]]},
+          {range:`${CFG.SHT}!W${COS.ri}:X${COS.ri}`, values:[['', 'FALSE']]}
         ]
       }
     });
@@ -3326,9 +3324,9 @@ async function corrigirG402(){
       const cfgAtv=ATV[r.atv];
       const vOS=cfgAtv?cfgAtv.v:r.vos;
       return[
-        {range:`${CFG.SHT}!U${r.ri}`,values:[[fmt(vOS)]]},
-        {range:`${CFG.SHT}!V${r.ri}`,values:[['R$ 0,00']]},
-        {range:`${CFG.SHT}!W${r.ri}`,values:[[fmt(vOS)]]}
+        {range:`${CFG.SHT}!R${r.ri}`,values:[[fmt(vOS)]]},
+        {range:`${CFG.SHT}!S${r.ri}`,values:[['R$ 0,00']]},
+        {range:`${CFG.SHT}!T${r.ri}`,values:[[fmt(vOS)]]}
       ];
     });
     await gapi.client.sheets.spreadsheets.values.batchUpdate({
