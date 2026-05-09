@@ -779,6 +779,10 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
             <span class="val" id="rota-custo-est">—</span>
           </div>
           <button class="btn btn-p" style="width:100%" onclick="salvarRota()">💾 Salvar rota</button>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <label style="font-size:11px;color:var(--text-muted);white-space:nowrap">Enviar para:</label>
+            <input id="rota-tel-dest" type="tel" placeholder="21999999999" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--mica-surface);color:var(--text-primary);font-size:12px">
+          </div>
         </div>
       </div>
       <div class="rota-map card">
@@ -931,6 +935,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     </div>
   </div>
   <div class="dbody" id="drawer-body">
+    <div id="drawer-soltos" style="padding:0 4px 8px;display:none"></div>
     <div class="ds" id="d-contato-sec" style="display:none"><h3>Contato</h3><div id="d-contato-body"></div></div>
     <div class="ds"><h3>Localização</h3><div class="dg">
       <div class="df full">
@@ -1799,7 +1804,10 @@ function filterDashData(D){
   const iIni=DASH_F.mesIni?MOS_ORD_IDX(DASH_F.mesIni):-1;
   const iFim=DASH_F.mesFim?MOS_ORD_IDX(DASH_F.mesFim):999;
   return D.filter(r=>{
-    if(DASH_F.polo&&(r.polo||'').toLowerCase()!==DASH_F.polo.toLowerCase())return false;
+    // Deriva polo do município se não estiver preenchido
+    const munKey=nMun(r.mun);
+    const polo=r.polo||(munKey&&MUN[munKey]?MUN[munKey].polo:'')||'';
+    if(DASH_F.polo&&polo.toLowerCase()!==DASH_F.polo.toLowerCase())return false;
     if(DASH_F.mesIni||DASH_F.mesFim){
       if(!r.mes)return false;
       const idx=MOS_ORD_IDX(r.mes);
@@ -1904,6 +1912,7 @@ function openD(idx){
   setEI('e-siopi',r.siopi);setEI('e-mes',r.mes);
   setEI('e-atv',r.atv);
   document.getElementById('d-contato-sec').style.display='none';
+  const ds=document.getElementById('drawer-soltos');if(ds){ds.style.display='none';ds.innerHTML='';}
   loadDrive(r);
   document.getElementById('drawer').classList.add('open');
   document.getElementById('ov').classList.add('open');
@@ -2553,8 +2562,22 @@ async function loadContatoTxt(folderId, ros){
 }
 async function loadContatoTxtDireto(osFolderId, ros){
   try{
-    const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='text/plain' and trashed=false`,fields:'files(id,name)',pageSize:5});
-    const txts=res.result.files||[];if(!txts.length)return;
+    const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='text/plain' and trashed=false`,fields:'files(id,name,webViewLink)',pageSize:10});
+    const txts=res.result.files||[];
+    // Exibe arquivos soltos no drawer
+    const soltosEl=document.getElementById('drawer-soltos');
+    if(soltosEl&&txts.length){
+      soltosEl.style.display='block';
+      soltosEl.innerHTML='<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">📎 Arquivos soltos</div>';
+      txts.forEach(f=>{
+        const a=document.createElement('a');
+        a.href=f.webViewLink;a.target='_blank';a.rel='noopener';
+        a.style.cssText='display:block;font-size:11px;color:var(--accent);padding:3px 0;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+        a.textContent='📄 '+f.name;
+        soltosEl.appendChild(a);
+      });
+    }
+    if(!txts.length)return;
     const resp=await fetch(`https://www.googleapis.com/drive/v3/files/${txts[0].id}?alt=media`,{headers:{Authorization:`Bearer ${TOKEN}`}});
     if(!resp.ok)return;const txt=await resp.text();
     const osObj=ALL.find(a=>a.item===ros?.item)||ros;
@@ -2956,11 +2979,17 @@ function renderizarResultadosRota(directionsResponse){
 function updateRotaMapManual(){
   const partida = document.getElementById('rota-partida').value || ORIGEM;
   const enderecosOtimizados=ROTA_OTIMIZADA.map(r=>normalizarEndereco(r));
-  const originUrl=encodeURIComponent(partida),destinationUrl=encodeURIComponent(partida);
-  const wayptsUrl=enderecosOtimizados.map(e=>encodeURIComponent(e)).join('|');
-  const mapsEmbedUrl=`https://www.google.com/maps/embed/v1/directions?key=${CFG.KEY}&origin=${originUrl}&destination=${destinationUrl}&waypoints=${wayptsUrl}&mode=driving&language=pt-BR`;
-  document.getElementById('rota-map-body').innerHTML=`<iframe src="${mapsEmbedUrl}" style="width:100%;height:100%;min-height:500px;border:none" allowfullscreen loading="lazy"></iframe>`;
-  document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • Sequência manual/ajustada`;
+  // Monta URL do Google Maps sem API key (embed público)
+  const allPoints=[partida,...enderecosOtimizados,partida];
+  const mapsUrl=`https://www.google.com/maps/dir/${allPoints.map(e=>encodeURIComponent(e)).join('/')}`;
+  document.getElementById('rota-map-body').innerHTML=`
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:300px;gap:16px;padding:24px">
+      <div style="font-size:48px">🗺️</div>
+      <div style="font-size:14px;font-weight:600;color:var(--text-primary)">Rota gerada com ${ROTA_OTIMIZADA.length} paradas</div>
+      <div style="font-size:12px;color:var(--text-muted);text-align:center">Clique no botão abaixo para visualizar no Google Maps</div>
+      <a href="${mapsUrl}" target="_blank" rel="noopener" style="background:var(--accent);color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:13px;font-weight:700">Abrir no Google Maps ↗</a>
+    </div>`;
+  document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • Clique em "Abrir no Google Maps"`;
 }
 
 function calcCustoRota(){
@@ -3015,8 +3044,9 @@ function salvarRota(){
     msg+=urlMaps;
   }
   
-  // Envia via WhatsApp - usando encode manual para preservar quebras de linha
-  const meuTel='21971864996';
+  // Envia via WhatsApp
+  const meuTel=(document.getElementById('rota-tel-dest')?.value||'').replace(/\D/g,'');
+  if(!meuTel){showToast('⚠️ Informe o telefone de destino antes de enviar.');return;}
   const msgEncoded=encodeURIComponent(msg).replace(/%0A/g,'%0D%0A');
   const urlWpp=`https://wa.me/55${meuTel}?text=${msgEncoded}`;
   window.open(urlWpp,'_blank');
@@ -3537,38 +3567,15 @@ async function selecionarOsAgenda(r){
     const osFolderId=r2.result.files[0].id;
     console.log(`[Agenda Tel] Pasta OS: ${r2.result.files[0].name} (${osFolderId})`);
     
-    // 3. Busca subpastas da OS
-    const r3=await gapi.client.drive.files.list({
-      q:`'${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-      fields:'files(id,name)',
-      orderBy:'name',
-      pageSize:10
-    });
-    
-    const subs=r3.result.files||[];
-    console.log(`[Agenda Tel] Subpastas encontradas: ${subs.map(s=>s.name).join(', ')}`);
-    
-    // 4. Procura pasta 01 (aceita AMBOS formatos)
-    const sub01=subs.find(s=>s.name.startsWith('01-')||s.name.startsWith('01 -'));
-    
-    if(!sub01){
-      console.warn('[Agenda Tel] Pasta 01 não encontrada');
-      inpT.value='';
-      window.S_CONTATOS[r.item]={tel:null};
-      return;
-    }
-    
-    console.log(`[Agenda Tel] Pasta 01: ${sub01.name} (${sub01.id})`);
-    
-    // 5. Busca arquivo .txt dentro da pasta 01
+    // 3. Busca arquivo .txt direto na pasta da OS
     const r4=await gapi.client.drive.files.list({
-      q:`'${sub01.id}' in parents and mimeType='text/plain' and trashed=false`,
+      q:`'${osFolderId}' in parents and mimeType='text/plain' and trashed=false`,
       fields:'files(id,name)',
       pageSize:1
     });
     
     if(!r4.result.files||!r4.result.files.length){
-      console.warn('[Agenda Tel] Arquivo .txt não encontrado na pasta 01');
+      console.warn('[Agenda Tel] Arquivo .txt não encontrado na pasta da OS');
       inpT.value='';
       window.S_CONTATOS[r.item]={tel:null};
       return;
