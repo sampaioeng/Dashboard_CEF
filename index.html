@@ -1877,7 +1877,7 @@ function renderCharts(D){
   // Faturamento por polo
   const polos=Object.keys(POLO_CORES),cores=Object.values(POLO_CORES);
   const mesSet=new Set();D.forEach(r=>{if(r.mes&&r.vt>0)mesSet.add(r.mes);});const mesL=[...mesSet].sort((a,b)=>MOS_ORD_IDX(a)-MOS_ORD_IDX(b));
-  const datasets=polos.map((polo,pi)=>({label:polo,data:mesL.map(mes=>Math.round(D.filter(r=>r.mes===mes&&r.polo&&r.polo.toLowerCase()===polo.toLowerCase()&&r.vt>0).reduce((s,r)=>s+r.vt,0))),backgroundColor:cores[pi],borderRadius:0,barPercentage:.75,categoryPercentage:.85}));
+  const datasets=polos.map((polo,pi)=>({label:polo,data:mesL.map(mes=>Math.round(D.filter(r=>{const munKey=nMun(r.mun);const rPolo=r.polo||(munKey&&MUN[munKey]?MUN[munKey].polo:'')||'';return r.mes===mes&&rPolo.toLowerCase()===polo.toLowerCase()&&r.vt>0;}).reduce((s,r)=>s+r.vt,0))),backgroundColor:cores[pi],borderRadius:0,barPercentage:.75,categoryPercentage:.85}));
   const altPolo=Math.max(280,mesL.length*30);document.getElementById('cpolo-wrap').style.height=altPolo+'px';
   const ctx=document.getElementById('cpolo').getContext('2d');if(CHS['cpolo'])CHS['cpolo'].destroy();
   CHS['cpolo']=new Chart(ctx,{type:'bar',data:{labels:mesL,datasets},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${brl(c.raw)}`}}},scales:{x:{stacked:true,ticks:{color:'rgba(158,158,167,0.8)',font:{size:9},callback:v=>fmtK(v)},grid:{color:'rgba(255,255,255,.05)'}},y:{stacked:true,ticks:{color:'rgba(158,158,167,0.8)',font:{size:9,family:"'Inter',sans-serif"}},grid:{display:false}}}}});
@@ -2551,7 +2551,7 @@ async function renderSubs(oid,onm,pf,ld,ct,pt,fl,wn,ros){
 }
 async function loadContatoTxt(folderId, ros){
   try{
-    const res=await gapi.client.drive.files.list({q:`'${folderId}' in parents and mimeType='text/plain' and trashed=false`,fields:'files(id,name)',pageSize:5});
+    const res=await gapi.client.drive.files.list({q:`'${folderId}' in parents and name contains '.txt' and trashed=false`,fields:'files(id,name)',pageSize:5});
     const txts=res.result.files||[];if(!txts.length)return;
     const resp=await fetch(`https://www.googleapis.com/drive/v3/files/${txts[0].id}?alt=media`,{headers:{Authorization:`Bearer ${TOKEN}`}});
     if(!resp.ok)return;const txt=await resp.text();
@@ -2562,7 +2562,7 @@ async function loadContatoTxt(folderId, ros){
 }
 async function loadContatoTxtDireto(osFolderId, ros){
   try{
-    const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='text/plain' and trashed=false`,fields:'files(id,name,webViewLink)',pageSize:10});
+    const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and name contains '.txt' and trashed=false`,fields:'files(id,name,webViewLink)',pageSize:10});
     const txts=res.result.files||[];
     // Exibe arquivos soltos no drawer
     const soltosEl=document.getElementById('drawer-soltos');
@@ -3599,9 +3599,9 @@ async function selecionarOsAgenda(r){
     const osFolderId=r2.result.files[0].id;
     console.log(`[Agenda Tel] Pasta OS: ${r2.result.files[0].name} (${osFolderId})`);
     
-    // 3. Busca arquivo .txt direto na pasta da OS
+    // 3. Busca arquivo .txt direto na pasta da OS (por nome, não por mimetype)
     const r4=await gapi.client.drive.files.list({
-      q:`'${osFolderId}' in parents and mimeType='text/plain' and trashed=false`,
+      q:`'${osFolderId}' in parents and name contains '.txt' and trashed=false`,
       fields:'files(id,name)',
       pageSize:1
     });
