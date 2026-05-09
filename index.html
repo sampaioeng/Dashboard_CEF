@@ -2966,25 +2966,34 @@ async function _gerarRotaMaps(mapBody){
     return;
   }
 
-  // Busca rota real via Geoapify Routing
+  // Busca rota real via Geoapify Routing (GET)
   document.getElementById('rota-map-info').textContent='Calculando rota...';
   try{
-    const waypoints=coords.map(c=>({'lat':c[0],'lon':c[1]}));
-    const geoRes=await fetch(`https://api.geoapify.com/v1/routing?apiKey=${GEO_KEY}`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({mode:'drive',waypoints})
-    });
+    const waypointsParam=coords.map(c=>c[0]+','+c[1]).join('|');
+    const geoRes=await fetch(`https://api.geoapify.com/v1/routing?waypoints=${encodeURIComponent(waypointsParam)}&mode=drive&apiKey=${GEO_KEY}`);
     const geoData=await geoRes.json();
     if(geoData.features&&geoData.features.length){
       const route=geoData.features[0];
       ROTA_KM_TOTAL=(route.properties.distance||0)/1000;
       document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
-      L.geoJSON(route.geometry,{style:{color:'#881438',weight:5,opacity:0.85}}).addTo(map);
+      // Extrai coordenadas do MultiLineString e desenha
+      const geom=route.geometry;
+      if(geom.type==='MultiLineString'){
+        geom.coordinates.forEach(seg=>{
+          const pts=seg.map(c=>[c[1],c[0]]);
+          L.polyline(pts,{color:'#881438',weight:5,opacity:0.85}).addTo(map);
+        });
+      }else if(geom.type==='LineString'){
+        const pts=geom.coordinates.map(c=>[c[1],c[0]]);
+        L.polyline(pts,{color:'#881438',weight:5,opacity:0.85}).addTo(map);
+      }else{
+        L.geoJSON(geom,{style:{color:'#881438',weight:5,opacity:0.85}}).addTo(map);
+      }
     }else{
       L.polyline(coords,{color:'#881438',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
     }
   }catch(e){
+    console.warn('Routing erro:',e);
     L.polyline(coords,{color:'#881438',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
   }
 
