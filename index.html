@@ -1445,10 +1445,8 @@ window.onload=()=>{
     }
   }
   
-  window.initGoogleMaps=function(){window.GMAPS_READY=true;};
-  const gMapsScript=document.createElement('script');
-  gMapsScript.src=`https://maps.googleapis.com/maps/api/js?key=${CFG.KEY}&callback=initGoogleMaps`;
-  document.head.appendChild(gMapsScript);
+  // Maps Google removido — usando Leaflet/OpenStreetMap (gratuito, sem API Key)
+  window.GMAPS_READY=false;
   loadGAPI();
 };
 
@@ -2920,45 +2918,66 @@ function gerarRota(){
   ROTA_OTIMIZADA=[...selecionadas];
   ROTA_KM_TOTAL=0;
   renderizarResultadosRota(null);
-  if(window.GMAPS_READY&&window.google&&window.google.maps){
-    _gerarRotaMaps(mapBody);
-  }else{
-    let t=0;
-    const wait=setInterval(()=>{
-      t+=200;
-      if(window.GMAPS_READY&&window.google&&window.google.maps){clearInterval(wait);_gerarRotaMaps(mapBody);}
-      else if(t>5000){clearInterval(wait);showToast('⚠️ Google Maps não disponível.');updateRotaMapManual();}
-    },200);
-  }
+  _gerarRotaMaps(mapBody);
 }
 
-function _gerarRotaMaps(mapBody){
+async function _gerarRotaMaps(mapBody){
   const partida=document.getElementById('rota-partida').value||ORIGEM;
   const enderecos=ROTA_OTIMIZADA.map(r=>normalizarEndereco(r));
-  mapBody.innerHTML='<div id="gmap-div" style="width:100%;height:100%;min-height:400px"></div>';
-  const map=new google.maps.Map(document.getElementById('gmap-div'),{zoom:10,center:{lat:-22.9,lng:-43.2}});
-  const dr=new google.maps.DirectionsRenderer({suppressMarkers:false});
-  dr.setMap(map);
-  const ds=new google.maps.DirectionsService();
-  ds.route({
-    origin:partida,
-    destination:partida,
-    waypoints:enderecos.map(e=>({location:e,stopover:true})),
-    optimizeWaypoints:false,
-    travelMode:google.maps.TravelMode.DRIVING
-  },function(result,status){
-    if(status==='OK'){
-      dr.setDirections(result);
-      let km=0;result.routes[0].legs.forEach(l=>km+=l.distance.value);
-      ROTA_KM_TOTAL=km/1000;
-      document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
-      document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km`;
-      calcCustoRota();
-    }else{
-      console.warn('DirectionsService erro:',status);
-      updateRotaMapManual();
-    }
+  const todos=[partida,...enderecos,partida];
+
+  // Carrega Leaflet se ainda não carregou
+  if(!window.L){
+    await new Promise(res=>{
+      const css=document.createElement('link');css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css);
+      const s=document.createElement('script');s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';s.onload=res;document.head.appendChild(s);
+    });
+  }
+
+  mapBody.innerHTML='<div id="leaflet-map" style="width:100%;height:100%;min-height:400px"></div>';
+  await new Promise(r=>setTimeout(r,100));
+
+  const map=L.map('leaflet-map').setView([-22.9,- 43.2],10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
+
+  // Geocodifica endereços via Nominatim (gratuito)
+  const geocode=async(addr)=>{
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`,{headers:{'Accept-Language':'pt-BR'}});
+      const d=await r.json();
+      return d.length?[parseFloat(d[0].lat),parseFloat(d[0].lon)]:null;
+    }catch{return null;}
+  };
+
+  document.getElementById('rota-map-info').textContent='Geocodificando endereços...';
+  const coords=[];
+  for(const addr of todos){
+    const c=await geocode(addr);
+    if(c)coords.push(c);
+    await new Promise(r=>setTimeout(r,300)); // respeita limite Nominatim
+  }
+
+  if(coords.length<2){
+    mapBody.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:13px">Não foi possível geocodificar os endereços.</div>';
+    return;
+  }
+
+  // Desenha linha da rota
+  L.polyline(coords,{color:'#881438',weight:4,opacity:0.8}).addTo(map);
+
+  // Marcadores numerados
+  coords.forEach((c,i)=>{
+    const label=i===0||i===coords.length-1?'🏠':`${i}`;
+    const icon=L.divIcon({className:'',html:`<div style="background:${i===0||i===coords.length-1?'#34245c':'#881438'};color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.4)">${label}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
+    const os=i>0&&i<coords.length-1?ROTA_OTIMIZADA[i-1]:null;
+    const popup=os?`<b>#${os.item}</b><br>${os.end}<br>${os.bairro}`:partida;
+    L.marker(c,{icon}).addTo(map).bindPopup(popup);
   });
+
+  map.fitBounds(L.latLngBounds(coords),{padding:[30,30]});
+  document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • OpenStreetMap`;
+  document.getElementById('rota-custo-card').style.display='block';
+  calcCustoRota();
 }
 
 
