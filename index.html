@@ -2496,9 +2496,18 @@ function parseTxt(txt, r){
     if(mgen) tel = mgen[1].trim();
   }
 
-  const res={nome:nome||null,tel:tel||null};
+  let cep = null;
+  const matchCep = txt.match(/CEP[^\d]*?([\d]{5}-?[\d]{3})/i);
+  if (matchCep) {
+    cep = matchCep[1].trim();
+  }
+
+  const res={nome:nome||null,tel:tel||null,cep:cep||null};
   if(r){
-    r.c_nome=res.nome;r.c_tel=res.tel;
+    r.c_nome=res.nome;r.c_tel=res.tel;r.c_cep=res.cep;
+    if (res.cep && (!r.cep || r.cep === '—' || r.cep === '')) {
+      r.cep = res.cep;
+    }
     if(window.S_CONTATOS) window.S_CONTATOS[r.item]=res;
   }
   return res;
@@ -2555,8 +2564,12 @@ async function loadContatoTxt(folderId, ros){
     const resp=await fetch(`https://www.googleapis.com/drive/v3/files/${txts[0].id}?alt=media`,{headers:{Authorization:`Bearer ${TOKEN}`}});
     if(!resp.ok)return;const txt=await resp.text();
     const osObj = ALL.find(a=>a.item===ros?.item) || ros;
-    const{nome,tel}=parseTxt(txt, osObj);
+    const{nome,tel,cep}=parseTxt(txt, osObj);
     showContato(nome,tel);
+    if(cep){
+      setDV('d-cep',cep);
+      setEI('e-cep',cep);
+    }
   }catch(e){console.warn('Contato TXT:',e);}
 }
 async function loadContatoTxtDireto(osFolderId, ros, fl){
@@ -2577,8 +2590,12 @@ async function loadContatoTxtDireto(osFolderId, ros, fl){
     const resp=await fetch(`https://www.googleapis.com/drive/v3/files/${txts[0].id}?alt=media`,{headers:{Authorization:`Bearer ${TOKEN}`}});
     if(!resp.ok)return;const txt=await resp.text();
     const osObj=ALL.find(a=>a.item===ros?.item)||ros;
-    const{nome,tel}=parseTxt(txt,osObj);
+    const{nome,tel,cep}=parseTxt(txt,osObj);
     showContato(nome,tel);
+    if(cep){
+      setDV('d-cep',cep);
+      setEI('e-cep',cep);
+    }
   }catch(e){console.warn('Contato TXT direto:',e);}
 }
 function warnD(ld,ct,pt,fl,wn,msg,nm,pf){ld.style.display='none';pt.textContent=`Drive / ${pf} / ${nm}`;fl.innerHTML='';wn.style.display='block';wn.textContent=msg;ct.style.display='block';}
