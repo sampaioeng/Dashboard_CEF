@@ -2937,26 +2937,22 @@ async function _gerarRotaMaps(mapBody){
   mapBody.innerHTML='<div id="leaflet-map" style="width:100%;height:100%;min-height:400px"></div>';
   await new Promise(r=>setTimeout(r,100));
 
-  const map=L.map('leaflet-map').setView([-22.9,- 43.2],10);
+  const map=L.map('leaflet-map').setView([-22.9,-43.2],10);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
 
-  // Geocodifica endereços via Geoapify
   const GEO_KEY='e3219b407e77401692c069c3f9eb4f0d';
   const geocode=async(addr)=>{
     try{
       const r=await fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addr)}&lang=pt&limit=1&apiKey=${GEO_KEY}`);
       const d=await r.json();
-      if(d.features&&d.features.length){
-        const [lon,lat]=d.features[0].geometry.coordinates;
-        return[lat,lon];
-      }
+      if(d.features&&d.features.length){const[lon,lat]=d.features[0].geometry.coordinates;return[lat,lon];}
       return null;
     }catch{return null;}
   };
 
+  // Fase 1: geocodificar e mostrar marcadores arrastáveis
   document.getElementById('rota-map-info').textContent='Geocodificando endereços...';
-  // Geocodifica com fallback para modal de correção manual
-  const coords=[];
+  const coordsMap=[];
   for(let i=0;i<todos.length;i++){
     let c=await geocode(todos[i]);
     if(!c){
@@ -2970,74 +2966,86 @@ async function _gerarRotaMaps(mapBody){
           const addr=document.getElementById('modal-geo-addr').value.trim();
           const coordsRaw=document.getElementById('modal-geo-coords').value.trim();
           modal.style.display='none';
-          if(coordsRaw){
-            const parts=coordsRaw.split(',').map(s=>parseFloat(s.trim()));
-            if(parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])){resolve([parts[0],parts[1]]);return;}
-          }
-          if(addr){
-            const r=await geocode(addr);
-            resolve(r||null);
-            return;
-          }
+          if(coordsRaw){const parts=coordsRaw.split(',').map(s=>parseFloat(s.trim()));if(parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])){resolve([parts[0],parts[1]]);return;}}
+          if(addr){const r=await geocode(addr);resolve(r||null);return;}
           resolve(null);
         };
         window.modalGeoSkip=()=>{modal.style.display='none';resolve(null);};
       });
     }
-    if(c)coords.push(c);
+    coordsMap.push({idx:i,coord:c,addr:todos[i]});
   }
 
-  if(coords.length<2){
+  const validos=coordsMap.filter(x=>x.coord);
+  if(validos.length<2){
     mapBody.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:13px">Endereços insuficientes para gerar rota.</div>';
     return;
   }
 
-  // Busca rota real via Geoapify Routing (GET)
+  // Fase 2: mostrar marcadores arrastáveis para confirmação
+  document.getElementById('rota-map-info').textContent='Confirme os pontos — arraste para ajustar';
+  const markers=[];
+  validos.forEach((item,i)=>{
+    const isBase=item.idx===0||item.idx===todos.length-1;
+    const label=isBase?'🏠':`${item.idx}`;
+    const icon=L.divIcon({className:'',html:`<div style="background:${isBase?'#34245c':'#881438'};color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);cursor:grab">${label}</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+    const os=item.idx>0&&item.idx<todos.length-1?ROTA_OTIMIZADA[item.idx-1]:null;
+    const popup=os?`<b>#${os.item}</b><br>${os.end}<br>${os.bairro}`:item.addr;
+    const marker=L.marker(item.coord,{icon,draggable:true}).addTo(map).bindPopup(popup);
+    marker.on('dragend',()=>{const ll=marker.getLatLng();item.coord=[ll.lat,ll.lng];});
+    markers.push(marker);
+  });
+
+  map.fitBounds(L.latLngBounds(validos.map(x=>x.coord)),{padding:[40,40]});
+
+  // Botão confirmar pontos
+  const btnConfirm=L.control({position:'bottomright'});
+  btnConfirm.onAdd=()=>{
+    const div=document.createElement('div');
+    div.innerHTML='<button id="btn-confirmar-pontos" style="background:#34245c;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)">✅ Confirmar pontos e traçar rota</button>';
+    div.firstChild.onclick=()=>_tracarRota(map,validos,btnConfirm);
+    return div;
+  };
+  btnConfirm.addTo(map);
+}
+
+async function _tracarRota(map,validos,btnConfirm){
+  btnConfirm.remove();
   document.getElementById('rota-map-info').textContent='Calculando rota...';
+  const GEO_KEY='e3219b407e77401692c069c3f9eb4f0d';
+  const coords=validos.map(x=>x.coord);
+
   try{
     const waypointsParam=coords.map(c=>c[0]+','+c[1]).join('|');
-    const geoRes=await fetch(`https://api.geoapify.com/v1/routing?waypoints=${encodeURIComponent(waypointsParam)}&mode=drive&apiKey=${GEO_KEY}`);
+    const geoRes=await fetch(`https://api.geoapify.com/v1/routing?waypoints=${encodeURIComponent(waypointsParam)}&mode=drive&details=instruction_details&apiKey=${GEO_KEY}`);
     const geoData=await geoRes.json();
     if(geoData.features&&geoData.features.length){
       const route=geoData.features[0];
       ROTA_KM_TOTAL=(route.properties.distance||0)/1000;
       document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
-      // Extrai coordenadas do MultiLineString e desenha
-      const geom=route.geometry;
-      if(geom.type==='MultiLineString'){
-        geom.coordinates.forEach(seg=>{
-          const pts=seg.map(c=>[c[1],c[0]]);
-          L.polyline(pts,{color:'#881438',weight:5,opacity:0.85}).addTo(map);
+      const legs=route.properties.legs||[];
+      if(legs.length){
+        legs.forEach(leg=>{
+          if(leg.steps){leg.steps.forEach(step=>{
+            if(step.geometry&&step.geometry.coordinates&&step.geometry.coordinates.length>=2){
+              L.polyline(step.geometry.coordinates.map(c=>[c[1],c[0]]),{color:'#881438',weight:5,opacity:0.85}).addTo(map);
+            }
+          });}
         });
-      }else if(geom.type==='LineString'){
-        const pts=geom.coordinates.map(c=>[c[1],c[0]]);
-        L.polyline(pts,{color:'#881438',weight:5,opacity:0.85}).addTo(map);
       }else{
-        L.geoJSON(geom,{style:{color:'#881438',weight:5,opacity:0.85}}).addTo(map);
+        const geom=route.geometry;
+        if(geom.type==='MultiLineString'){geom.coordinates.forEach(seg=>{if(seg.length>=2)L.polyline(seg.map(c=>[c[1],c[0]]),{color:'#881438',weight:5,opacity:0.85}).addTo(map);});}
+        else if(geom.type==='LineString'){L.polyline(geom.coordinates.map(c=>[c[1],c[0]]),{color:'#881438',weight:5,opacity:0.85}).addTo(map);}
       }
     }else{
       L.polyline(coords,{color:'#881438',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
     }
   }catch(e){
-    console.warn('Routing erro:',e);
     L.polyline(coords,{color:'#881438',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
   }
-
-  // Marcadores numerados
-  coords.forEach((c,i)=>{
-    const isBase=i===0||i===coords.length-1;
-    const label=isBase?'🏠':`${i}`;
-    const icon=L.divIcon({className:'',html:`<div style="background:${isBase?'#34245c':'#881438'};color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.4)">${label}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
-    const os=i>0&&i<coords.length-1?ROTA_OTIMIZADA[i-1]:null;
-    const popup=os?`<b>#${os.item}</b><br>${os.end}<br>${os.bairro}`:partida;
-    L.marker(c,{icon}).addTo(map).bindPopup(popup);
-  });
-
-  map.fitBounds(L.latLngBounds(coords),{padding:[30,30]});
   document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km • OpenStreetMap`;
   document.getElementById('rota-custo-card').style.display='block';
   calcCustoRota();
-}
 
 
 function renderizarResultadosRota(directionsResponse){
