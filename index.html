@@ -617,6 +617,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
   <div class="spacer"></div>
   <span class="auth-info" id="auth-ind">● Não autenticado</span>
   <button class="btn-auth" id="btn-auth" onclick="doAuth()" style="margin-left:8px">Entrar</button>
+  <button id="btn-auto-cep" onclick="batchUpdateCeps()" style="margin-left:8px; padding:4px 8px; border-radius:6px; border:1px solid var(--mica-border); background:var(--mica-surface); color:var(--text-primary); cursor:pointer; font-size:12px;" title="Buscar CEPs faltantes nos arquivos TXT e salvar na planilha">🔄 Auto-CEPs</button>
   <button class="btn-dark" id="btn-dark" onclick="toggleDark()" title="Alternar tema">🌙</button>
 </div>
 
@@ -957,7 +958,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
       <div class="df">
         <div class="dl">CEP</div>
         <div class="dv" id="d-cep"></div>
-        <input class="dv-input" id="e-cep" type="text" data-field="cep" >
+        <input class="dv-input" id="e-cep" type="text" data-field="cep" data-col="AA">
       </div>
       <div class="df">
         <div class="dl">Polo</div>
@@ -1367,7 +1368,7 @@ function getMesAtual(){const now=new Date();const m=['jan','fev','mar','abr','ma
 function normalizaMes(m){if(!m)return'';const s=String(m).trim().replace('.','');if(/^\d{4}-\d{2}$/.test(s)){const[ano,mes]=s.split('-');const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];const idx=parseInt(mes,10)-1;if(idx>=0&&idx<12)return meses[idx]+'-'+ano.slice(2);}if(/^[a-z]{3}-\d{4}$/i.test(s)){const[mes,ano]=s.split('-');return mes.toLowerCase()+'-'+ano.slice(2);}return s;}
 function converterMesParaSalvar(m){if(!m)return'';const s=String(m).trim();if(/^\d{4}-\d{2}$/.test(s)){const[ano,mes]=s.split('-');const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];const idx=parseInt(mes,10)-1;if(idx>=0&&idx<12)return meses[idx]+'-'+ano.slice(2);}return s;}
 function normalizaDataEntrega(d){if(!d)return'';const s=String(d).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s)){const[ano,mes,dia]=s.split('-');return`${dia}/${mes}/${ano}`;}if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){return s;}return s;}
-function parseRow(r,i){return{ri:i+2,item:P(r[0]),os:P(r[1]),osp:P(r[1]),aceita:B(r[2]),atv:P(r[3]),tv:P(r[4]),mun:P(r[5]),bairro:P(r[6]),tip:P(r[7]),end:P(r[8]),area:P(r[9]),mes:normalizaMes(P(r[10])),siopi:normalizaDataEntrega(P(r[12])),pept:B(r[13]),ent:normalizaDataEntrega(P(r[14])),vis:B(r[15]),lau:B(r[16]),fich:false,vos:pBRL(r[17]),vd:pBRL(r[18]),vt:pBRL(r[19]),st:P(r[20]),va:pBRL(r[21]),rsm:P(r[22]),rev:B(r[23]),abr:P(r[24]),prz:P(r[25]),polo:'',cep:'',ord:P(r[0])};}
+function parseRow(r,i){return{ri:i+2,item:P(r[0]),os:P(r[1]),osp:P(r[1]),aceita:B(r[2]),atv:P(r[3]),tv:P(r[4]),mun:P(r[5]),bairro:P(r[6]),tip:P(r[7]),end:P(r[8]),area:P(r[9]),mes:normalizaMes(P(r[10])),siopi:normalizaDataEntrega(P(r[12])),pept:B(r[13]),ent:normalizaDataEntrega(P(r[14])),vis:B(r[15]),lau:B(r[16]),fich:false,vos:pBRL(r[17]),vd:pBRL(r[18]),vt:pBRL(r[19]),st:P(r[20]),va:pBRL(r[21]),rsm:P(r[22]),rev:B(r[23]),abr:P(r[24]),prz:P(r[25]),polo:'',cep:P(r[26]),ord:P(r[0])};}
 function stCfg(r){if(r.rev)return{cls:'st-revisao',bg:'#9333ea',lbl:'Em revisão'};return STCFG[r.st]||{cls:'',bg:'#475569',lbl:r.st||'—'};}
 function badge(r){const c=stCfg(r);return`<span class="badge" style="background:${c.bg}">${c.lbl}</span>`;}
 function rsm2(r){const a=parseFloat((r.area||'').replace(/[^\d,]/g,'').replace(',','.'));if(!a||a<=0||!r.va||r.va<=0)return'—';return'R$ '+(r.va/a).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
@@ -2507,6 +2508,14 @@ function parseTxt(txt, r){
     r.c_nome=res.nome;r.c_tel=res.tel;r.c_cep=res.cep;
     if (res.cep && (!r.cep || r.cep === '—' || r.cep === '')) {
       r.cep = res.cep;
+      if (typeof gapi !== 'undefined' && gapi.client && gapi.client.sheets) {
+        gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId: CFG.SID,
+          range: `${CFG.SHT}!AA${r.ri}`,
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [[res.cep]] }
+        }).catch(e => console.warn('Erro ao auto-salvar CEP:', e));
+      }
     }
     if(window.S_CONTATOS) window.S_CONTATOS[r.item]=res;
   }
@@ -3955,6 +3964,83 @@ async function gerarComprovantePDF(){
   
   btn.innerHTML=oldText;
   btn.disabled=false;
+}
+// ═══════════════════════════════════════════════════════════
+//  ATUALIZAÇÃO EM LOTE DE CEPS
+// ═══════════════════════════════════════════════════════════
+async function batchUpdateCeps() {
+  if (!AUTH) { showToast('Entre com Google primeiro.'); return; }
+  
+  const missingCeps = ALL.filter(r => r.st !== 'OS Cancelada' && (!r.cep || r.cep === '—' || r.cep === ''));
+  if (missingCeps.length === 0) {
+    showToast('✅ Todas as OS já possuem CEP!');
+    return;
+  }
+  
+  const confirmMsg = `Encontradas ${missingCeps.length} OS ativas sem CEP. Deseja buscar nos arquivos .txt e atualizar na planilha? Isso pode demorar alguns minutos.`;
+  if (!confirm(confirmMsg)) return;
+  
+  showToast('⏳ Iniciando busca em lote de CEPs...');
+  let count = 0;
+  const btn = document.getElementById('btn-auto-cep');
+  const oldText = btn.innerHTML;
+  btn.innerHTML = '⏳ Processando...';
+  btn.disabled = true;
+  
+  for (let i = 0; i < missingCeps.length; i++) {
+    const r = missingCeps[i];
+    try {
+      const pf=mes2pasta(r.mes);
+      if(!pf) continue;
+      const r1=await gapi.client.drive.files.list({q:`name='${pf}' and '${CFG.DID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)'});
+      if(!r1.result.files || !r1.result.files.length) continue;
+      const mesFolderId=r1.result.files[0].id;
+      
+      const np=nomePasta(r.item,r.atv,r.osp);
+      let r2=await gapi.client.drive.files.list({q:`name='${np}' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)'});
+      if(!r2.result.files || !r2.result.files.length){
+        r2=await gapi.client.drive.files.list({q:`name contains '${r.item}-' and '${mesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id)'});
+      }
+      if(!r2.result.files || !r2.result.files.length) continue;
+      const osFolderId=r2.result.files[0].id;
+      
+      const resTxt = await gapi.client.drive.files.list({
+        q: `'${osFolderId}' in parents and name contains '.txt' and trashed=false`,
+        fields: 'files(id)',
+        pageSize: 1
+      });
+      const txts = resTxt.result.files || [];
+      if (!txts.length) continue;
+      
+      const resp = await fetch(`https://www.googleapis.com/drive/v3/files/${txts[0].id}?alt=media`, {
+        headers: { Authorization: `Bearer ${TOKEN}` }
+      });
+      if (!resp.ok) continue;
+      const txt = await resp.text();
+      
+      const matchCep = txt.match(/CEP[^\d]*?([\d]{5}-?[\d]{3})/i);
+      if (matchCep) {
+        const cepVal = matchCep[1].trim();
+        r.cep = cepVal;
+        
+        await gapi.client.sheets.spreadsheets.values.update({
+          spreadsheetId: CFG.SID,
+          range: `${CFG.SHT}!AA${r.ri}`,
+          valueInputOption: 'USER_ENTERED',
+          resource: { values: [[cepVal]] }
+        });
+        count++;
+        showToast(`✅ CEP OS ${r.item} atualizado (${count}/${missingCeps.length})`);
+      }
+    } catch (e) {
+      console.warn('Erro OS', r.osp, e);
+    }
+  }
+  
+  showToast(`🎉 Processo concluído! ${count} CEPs atualizados.`);
+  btn.innerHTML = oldText;
+  btn.disabled = false;
+  loadData();
 }
 </script>
 
