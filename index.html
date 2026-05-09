@@ -2940,12 +2940,17 @@ async function _gerarRotaMaps(mapBody){
   const map=L.map('leaflet-map').setView([-22.9,- 43.2],10);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:19}).addTo(map);
 
-  // Geocodifica endereços via Nominatim (gratuito)
+  // Geocodifica endereços via Geoapify
+  const GEO_KEY='e3219b407e77401692c069c3f9eb4f0d';
   const geocode=async(addr)=>{
     try{
-      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`,{headers:{'Accept-Language':'pt-BR'}});
+      const r=await fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addr)}&lang=pt&limit=1&apiKey=${GEO_KEY}`);
       const d=await r.json();
-      return d.length?[parseFloat(d[0].lat),parseFloat(d[0].lon)]:null;
+      if(d.features&&d.features.length){
+        const [lon,lat]=d.features[0].geometry.coordinates;
+        return[lat,lon];
+      }
+      return null;
     }catch{return null;}
   };
 
@@ -2954,7 +2959,6 @@ async function _gerarRotaMaps(mapBody){
   for(const addr of todos){
     const c=await geocode(addr);
     if(c)coords.push(c);
-    await new Promise(r=>setTimeout(r,300)); // respeita limite Nominatim
   }
 
   if(coords.length<2){
@@ -2962,21 +2966,22 @@ async function _gerarRotaMaps(mapBody){
     return;
   }
 
-  // Busca rota real via OSRM (gratuito, sem API Key)
+  // Busca rota real via Geoapify Routing
   document.getElementById('rota-map-info').textContent='Calculando rota...';
   try{
-    const coordsStr=coords.map(c=>c[1]+','+c[0]).join(';');
-    const osrmUrl=`https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&steps=false`;
-    const osrmRes=await fetch(osrmUrl);
-    const osrmData=await osrmRes.json();
-    if(osrmData.code==='Ok'&&osrmData.routes.length){
-      const route=osrmData.routes[0];
-      ROTA_KM_TOTAL=route.distance/1000;
+    const waypoints=coords.map(c=>({'lat':c[0],'lon':c[1]}));
+    const geoRes=await fetch(`https://api.geoapify.com/v1/routing?apiKey=${GEO_KEY}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mode:'drive',waypoints})
+    });
+    const geoData=await geoRes.json();
+    if(geoData.features&&geoData.features.length){
+      const route=geoData.features[0];
+      ROTA_KM_TOTAL=(route.properties.distance||0)/1000;
       document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
-      // Desenha rota real
       L.geoJSON(route.geometry,{style:{color:'#881438',weight:5,opacity:0.85}}).addTo(map);
     }else{
-      // Fallback: linha reta
       L.polyline(coords,{color:'#881438',weight:4,opacity:0.8,dashArray:'8,6'}).addTo(map);
     }
   }catch(e){
