@@ -1445,8 +1445,9 @@ window.onload=()=>{
     }
   }
   
+  window.initGoogleMaps=function(){window.GMAPS_READY=true;};
   const gMapsScript=document.createElement('script');
-  gMapsScript.src=`https://maps.googleapis.com/maps/api/js?key=${CFG.KEY}`;
+  gMapsScript.src=`https://maps.googleapis.com/maps/api/js?key=${CFG.KEY}&callback=initGoogleMaps`;
   document.head.appendChild(gMapsScript);
   loadGAPI();
 };
@@ -2564,17 +2565,17 @@ async function loadContatoTxtDireto(osFolderId, ros){
   try{
     const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and name contains '.txt' and trashed=false`,fields:'files(id,name,webViewLink)',pageSize:10});
     const txts=res.result.files||[];
-    // Exibe arquivos soltos no drawer
+    // Exibe arquivos txt junto das pastas no drawer
     const soltosEl=document.getElementById('drawer-soltos');
     if(soltosEl&&txts.length){
       soltosEl.style.display='block';
-      soltosEl.innerHTML='<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">📎 Arquivos soltos</div>';
+      soltosEl.innerHTML='';
       txts.forEach(f=>{
-        const a=document.createElement('a');
-        a.href=f.webViewLink;a.target='_blank';a.rel='noopener';
-        a.style.cssText='display:block;font-size:11px;color:var(--accent);padding:3px 0;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
-        a.textContent='📄 '+f.name;
-        soltosEl.appendChild(a);
+        const div=document.createElement('div');div.className='fi';
+        div.style.cursor='pointer';
+        div.innerHTML=`<div class="ficon" style="background:rgba(52,36,92,0.15);border:1px solid rgba(52,36,92,0.3)">📝</div><div style="flex:1"><div style="font-size:12px;font-weight:500">${f.name}</div><div style="font-size:10px;color:var(--text-muted)">Arquivo de convocação</div></div><div style="font-size:10px;color:var(--accent)">↗</div>`;
+        div.onclick=()=>openFilePreviewDireto(f);
+        soltosEl.appendChild(div);
       });
     }
     if(!txts.length)return;
@@ -2670,6 +2671,20 @@ function openFilePreview(idx){
   else if(f.mimeType.includes('text/plain')){
     fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`,{headers:{Authorization:`Bearer ${TOKEN}`}}).then(r=>r.text()).then(txt=>{body.innerHTML=`<div style="font-family:monospace;font-size:12px;padding:1rem;color:#ccc;white-space:pre-wrap;overflow:auto;width:100%;height:100%;text-align:left">${txt.replace(/</g,'&lt;')}</div>`;}).catch(()=>{body.innerHTML=`<div class="prev-fallback">Não foi possível exibir.<br><a href="${f.webViewLink}" target="_blank">Abrir no Drive ↗</a></div>`;});
   }else{body.innerHTML=`<div class="prev-fallback">Tipo não suportado.<br><a href="${f.webViewLink}" target="_blank" rel="noopener">Abrir no Drive ↗</a></div>`;}
+}
+function openFilePreviewDireto(f){
+  PREV_FILES=[f];PREV_IDX=0;
+  const ov=document.getElementById('prev-overlay'),body=document.getElementById('prev-body');
+  document.getElementById('prev-title').textContent=f.name;
+  document.getElementById('prev-extlink').href=f.webViewLink||'#';
+  document.getElementById('btn-prev-doc').style.display='none';
+  document.getElementById('btn-next-doc').style.display='none';
+  body.innerHTML='<div class="prev-fallback"><div class="sp" style="margin:0 auto 12px"></div>Carregando...</div>';
+  ov.classList.add('open');
+  fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`,{headers:{Authorization:`Bearer ${TOKEN}`}})
+    .then(r=>r.text())
+    .then(txt=>{body.innerHTML=`<div style="font-family:monospace;font-size:12px;padding:1rem;color:#ccc;white-space:pre-wrap;overflow:auto;width:100%;height:100%;text-align:left">${txt.replace(/</g,'&lt;')}</div>`;})
+    .catch(()=>{body.innerHTML=`<div class="prev-fallback">Não foi possível exibir.<br><a href="${f.webViewLink}" target="_blank">Abrir no Drive ↗</a></div>`;});
 }
 function navDoc(dir){const n=PREV_IDX+dir;if(n>=0&&n<PREV_FILES.length)openFilePreview(n);}
 function closePreview(){document.getElementById('prev-overlay').classList.remove('open');}
@@ -2909,8 +2924,26 @@ function gerarRota(){
   ROTA_KM_TOTAL=0;
   renderizarResultadosRota(null);
 
-  // Tenta usar Google Maps DirectionsService
-  if(window.google&&window.google.maps){
+  // Usa Google Maps DirectionsService
+  if(window.GMAPS_READY&&window.google&&window.google.maps){
+    _gerarRotaMaps();
+  }else{
+    // Aguarda Maps carregar (até 5s)
+    let t=0;
+    const wait=setInterval(()=>{
+      t+=200;
+      if(window.GMAPS_READY&&window.google&&window.google.maps){
+        clearInterval(wait);_gerarRotaMaps();
+      }else if(t>5000){
+        clearInterval(wait);
+        showToast('⚠️ Google Maps não disponível. Verifique a API Key.');
+        updateRotaMapManual();
+      }
+    },200);
+  }
+}
+
+function _gerarRotaMaps(){
     const partida=document.getElementById('rota-partida').value||ORIGEM;
     const enderecos=ROTA_OTIMIZADA.map(r=>normalizarEndereco(r));
     const waypoints=enderecos.slice(0,-1).map(e=>({location:e,stopover:true}));
@@ -2929,7 +2962,6 @@ function gerarRota(){
     },function(result,status){
       if(status==='OK'){
         dr.setDirections(result);
-        // Calcula distância total
         let km=0;
         result.routes[0].legs.forEach(l=>km+=l.distance.value);
         ROTA_KM_TOTAL=km/1000;
@@ -2941,10 +2973,6 @@ function gerarRota(){
         updateRotaMapManual();
       }
     });
-  }else{
-    updateRotaMapManual();
-  }
-  showToast('Rota gerada!');
 }
 
 
