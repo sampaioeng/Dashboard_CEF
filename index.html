@@ -2955,14 +2955,40 @@ async function _gerarRotaMaps(mapBody){
   };
 
   document.getElementById('rota-map-info').textContent='Geocodificando endereços...';
+  // Geocodifica com fallback para modal de correção manual
   const coords=[];
-  for(const addr of todos){
-    const c=await geocode(addr);
+  for(let i=0;i<todos.length;i++){
+    let c=await geocode(todos[i]);
+    if(!c){
+      c=await new Promise(resolve=>{
+        const modal=document.getElementById('modal-geo');
+        document.getElementById('modal-geo-orig').textContent=todos[i];
+        document.getElementById('modal-geo-addr').value='';
+        document.getElementById('modal-geo-coords').value='';
+        modal.style.display='flex';
+        window.modalGeoConfirm=async()=>{
+          const addr=document.getElementById('modal-geo-addr').value.trim();
+          const coordsRaw=document.getElementById('modal-geo-coords').value.trim();
+          modal.style.display='none';
+          if(coordsRaw){
+            const parts=coordsRaw.split(',').map(s=>parseFloat(s.trim()));
+            if(parts.length===2&&!isNaN(parts[0])&&!isNaN(parts[1])){resolve([parts[0],parts[1]]);return;}
+          }
+          if(addr){
+            const r=await geocode(addr);
+            resolve(r||null);
+            return;
+          }
+          resolve(null);
+        };
+        window.modalGeoSkip=()=>{modal.style.display='none';resolve(null);};
+      });
+    }
     if(c)coords.push(c);
   }
 
   if(coords.length<2){
-    mapBody.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:13px">Não foi possível geocodificar os endereços.</div>';
+    mapBody.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:13px">Endereços insuficientes para gerar rota.</div>';
     return;
   }
 
@@ -3062,7 +3088,8 @@ function renderizarResultadosRota(directionsResponse){
         const moved = ROTA_OTIMIZADA.splice(from,1)[0];
         ROTA_OTIMIZADA.splice(to,0,moved);
         renderizarResultadosRota(null);
-        updateRotaMapManual();
+        const mb=document.getElementById('rota-map-body');
+        if(mb&&mb.querySelector('#leaflet-map')){_gerarRotaMaps(mb);}else{updateRotaMapManual();}
       }
       DRAGGED_IDX=null;
     });
@@ -3903,5 +3930,21 @@ async function gerarComprovantePDF(){
 }
 </script>
 
+
+<!-- Modal de correção de endereço -->
+<div id="modal-geo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--mica-bg);border:1px solid var(--mica-border);border-radius:12px;padding:24px;width:90%;max-width:460px;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+    <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:6px">📍 Endereço não localizado</div>
+    <div id="modal-geo-orig" style="font-size:11px;color:var(--text-muted);margin-bottom:16px;word-break:break-all"></div>
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Endereço corrigido</div>
+    <input id="modal-geo-addr" type="text" placeholder="Ex: Rua das Flores, 123, Niterói, RJ" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;margin-bottom:12px;box-sizing:border-box">
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">ou Coordenadas (lat, lon)</div>
+    <input id="modal-geo-coords" type="text" placeholder="Ex: -22.9035, -43.1729" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;margin-bottom:20px;box-sizing:border-box">
+    <div style="display:flex;gap:8px">
+      <button onclick="modalGeoSkip()" style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-muted);font-size:12px;cursor:pointer">Pular este endereço</button>
+      <button onclick="modalGeoConfirm()" style="flex:1;padding:8px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer">Confirmar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>-
