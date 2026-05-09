@@ -3046,6 +3046,9 @@ async function _tracarRota(map,validos,btnConfirm){
   document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km • OpenStreetMap`;
   document.getElementById('rota-custo-card').style.display='block';
   calcCustoRota();
+}
+
+
 
 
 function renderizarResultadosRota(directionsResponse){
