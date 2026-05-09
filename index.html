@@ -2905,14 +2905,46 @@ function gerarRota(){
   mapBody.className='';mapBody.style.flex='1';
   document.getElementById('rota-resultado').style.display='none';
   document.getElementById('rota-custo-card').style.display='none';
-  
-  // Rota inteiramente manual sem uso de Maps para contorno de billing.
   ROTA_OTIMIZADA=[...selecionadas];
   ROTA_KM_TOTAL=0;
-  
   renderizarResultadosRota(null);
-  updateRotaMapManual();
-  showToast('Rota manual construída. Você pode reordenar livremente.');
+
+  // Tenta usar Google Maps DirectionsService
+  if(window.google&&window.google.maps){
+    const partida=document.getElementById('rota-partida').value||ORIGEM;
+    const enderecos=ROTA_OTIMIZADA.map(r=>normalizarEndereco(r));
+    const waypoints=enderecos.slice(0,-1).map(e=>({location:e,stopover:true}));
+    const destino=enderecos[enderecos.length-1]||partida;
+    const ds=new google.maps.DirectionsService();
+    const dr=new google.maps.DirectionsRenderer({suppressMarkers:false});
+    mapBody.innerHTML='<div id="gmap-div" style="width:100%;height:100%;min-height:400px"></div>';
+    const map=new google.maps.Map(document.getElementById('gmap-div'),{zoom:10,center:{lat:-22.9,lng:-43.2}});
+    dr.setMap(map);
+    ds.route({
+      origin:partida,
+      destination:partida,
+      waypoints:enderecos.map(e=>({location:e,stopover:true})),
+      optimizeWaypoints:false,
+      travelMode:google.maps.TravelMode.DRIVING
+    },function(result,status){
+      if(status==='OK'){
+        dr.setDirections(result);
+        // Calcula distância total
+        let km=0;
+        result.routes[0].legs.forEach(l=>km+=l.distance.value);
+        ROTA_KM_TOTAL=km/1000;
+        document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
+        document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km`;
+        calcCustoRota();
+      }else{
+        console.warn('DirectionsService erro:',status);
+        updateRotaMapManual();
+      }
+    });
+  }else{
+    updateRotaMapManual();
+  }
+  showToast('Rota gerada!');
 }
 
 
