@@ -2536,7 +2536,7 @@ async function renderSubs(oid,onm,pf,ld,ct,pt,fl,wn,ros){
   try{
     const res=await gapi.client.drive.files.list({q:`'${oid}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',orderBy:'name',pageSize:10});
     const subs=res.result.files||[];pt.textContent=`Drive / ${pf} / ${onm}`;fl.innerHTML='';
-    loadContatoTxtDireto(oid, ros);
+    loadContatoTxtDireto(oid, ros, fl);
     for(const sp of SUBP){
       const f=subs.find(s=>s.name===sp.nm);
       const div=document.createElement('div');div.className='fi';
@@ -2561,21 +2561,18 @@ async function loadContatoTxt(folderId, ros){
     showContato(nome,tel);
   }catch(e){console.warn('Contato TXT:',e);}
 }
-async function loadContatoTxtDireto(osFolderId, ros){
+async function loadContatoTxtDireto(osFolderId, ros, fl){
   try{
     const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and name contains '.txt' and trashed=false`,fields:'files(id,name,webViewLink)',pageSize:10});
     const txts=res.result.files||[];
-    // Exibe arquivos txt junto das pastas no drawer
-    const soltosEl=document.getElementById('drawer-soltos');
-    if(soltosEl&&txts.length){
-      soltosEl.style.display='block';
-      soltosEl.innerHTML='';
+    // Insere txts no topo da lista de pastas (fl)
+    if(fl&&txts.length){
       txts.forEach(f=>{
         const div=document.createElement('div');div.className='fi';
         div.style.cursor='pointer';
         div.innerHTML=`<div class="ficon" style="background:rgba(52,36,92,0.15);border:1px solid rgba(52,36,92,0.3)">📝</div><div style="flex:1"><div style="font-size:12px;font-weight:500">${f.name}</div><div style="font-size:10px;color:var(--text-muted)">Arquivo de convocação</div></div><div style="font-size:10px;color:var(--accent)">↗</div>`;
         div.onclick=()=>openFilePreviewDireto(f);
-        soltosEl.appendChild(div);
+        fl.insertBefore(div, fl.firstChild);
       });
     }
     if(!txts.length)return;
@@ -2923,56 +2920,45 @@ function gerarRota(){
   ROTA_OTIMIZADA=[...selecionadas];
   ROTA_KM_TOTAL=0;
   renderizarResultadosRota(null);
-
-  // Usa Google Maps DirectionsService
   if(window.GMAPS_READY&&window.google&&window.google.maps){
-    _gerarRotaMaps();
+    _gerarRotaMaps(mapBody);
   }else{
-    // Aguarda Maps carregar (até 5s)
     let t=0;
     const wait=setInterval(()=>{
       t+=200;
-      if(window.GMAPS_READY&&window.google&&window.google.maps){
-        clearInterval(wait);_gerarRotaMaps();
-      }else if(t>5000){
-        clearInterval(wait);
-        showToast('⚠️ Google Maps não disponível. Verifique a API Key.');
-        updateRotaMapManual();
-      }
+      if(window.GMAPS_READY&&window.google&&window.google.maps){clearInterval(wait);_gerarRotaMaps(mapBody);}
+      else if(t>5000){clearInterval(wait);showToast('⚠️ Google Maps não disponível.');updateRotaMapManual();}
     },200);
   }
 }
 
-function _gerarRotaMaps(){
-    const partida=document.getElementById('rota-partida').value||ORIGEM;
-    const enderecos=ROTA_OTIMIZADA.map(r=>normalizarEndereco(r));
-    const waypoints=enderecos.slice(0,-1).map(e=>({location:e,stopover:true}));
-    const destino=enderecos[enderecos.length-1]||partida;
-    const ds=new google.maps.DirectionsService();
-    const dr=new google.maps.DirectionsRenderer({suppressMarkers:false});
-    mapBody.innerHTML='<div id="gmap-div" style="width:100%;height:100%;min-height:400px"></div>';
-    const map=new google.maps.Map(document.getElementById('gmap-div'),{zoom:10,center:{lat:-22.9,lng:-43.2}});
-    dr.setMap(map);
-    ds.route({
-      origin:partida,
-      destination:partida,
-      waypoints:enderecos.map(e=>({location:e,stopover:true})),
-      optimizeWaypoints:false,
-      travelMode:google.maps.TravelMode.DRIVING
-    },function(result,status){
-      if(status==='OK'){
-        dr.setDirections(result);
-        let km=0;
-        result.routes[0].legs.forEach(l=>km+=l.distance.value);
-        ROTA_KM_TOTAL=km/1000;
-        document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
-        document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km`;
-        calcCustoRota();
-      }else{
-        console.warn('DirectionsService erro:',status);
-        updateRotaMapManual();
-      }
-    });
+function _gerarRotaMaps(mapBody){
+  const partida=document.getElementById('rota-partida').value||ORIGEM;
+  const enderecos=ROTA_OTIMIZADA.map(r=>normalizarEndereco(r));
+  mapBody.innerHTML='<div id="gmap-div" style="width:100%;height:100%;min-height:400px"></div>';
+  const map=new google.maps.Map(document.getElementById('gmap-div'),{zoom:10,center:{lat:-22.9,lng:-43.2}});
+  const dr=new google.maps.DirectionsRenderer({suppressMarkers:false});
+  dr.setMap(map);
+  const ds=new google.maps.DirectionsService();
+  ds.route({
+    origin:partida,
+    destination:partida,
+    waypoints:enderecos.map(e=>({location:e,stopover:true})),
+    optimizeWaypoints:false,
+    travelMode:google.maps.TravelMode.DRIVING
+  },function(result,status){
+    if(status==='OK'){
+      dr.setDirections(result);
+      let km=0;result.routes[0].legs.forEach(l=>km+=l.distance.value);
+      ROTA_KM_TOTAL=km/1000;
+      document.getElementById('rota-km').value=ROTA_KM_TOTAL.toFixed(1);
+      document.getElementById('rota-map-info').textContent=`${ROTA_OTIMIZADA.length} paradas • ${ROTA_KM_TOTAL.toFixed(1)} km`;
+      calcCustoRota();
+    }else{
+      console.warn('DirectionsService erro:',status);
+      updateRotaMapManual();
+    }
+  });
 }
 
 
