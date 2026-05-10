@@ -2229,29 +2229,45 @@ function gerarNomeUnico(nome,existentes){
   return `${base}_${Date.now()}${ext}`;
 }
 
-// Upload de um documento para o Drive — delegado para a extensão Chrome
-// Motivo: a extensão tem service worker que não sofre restrições de CORS do navegador.
-async function uploadDocumentoParaDrive(doc,nomeDestino,folderId){
-  if(!doc.bytes){
+// Upload de um documento para o Drive — feito nativamente pelo Dashboard
+async function uploadDocumentoParaDrive(doc, nomeDestino, folderId) {
+  if (!doc.bytes) {
     throw new Error('documento sem bytes baixados');
   }
   
-  const mimeType=doc.mimeType||'application/octet-stream';
+  const mimeType = doc.mimeType || 'application/octet-stream';
   
-  // Pede para a extensão fazer o upload (via bridge)
-  const result=await window.danthiSIOPI.uploadToDrive({
-    bytes:doc.bytes,
-    nome:nomeDestino,
-    mimeType:mimeType,
-    folderId:folderId,
-    token:TOKEN
+  // Decodifica a string Base64 retornada pela extensão
+  const binaryString = atob(doc.bytes);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  const fileBlob = new Blob([bytes], { type: mimeType });
+  
+  const metadata = {
+    name: nomeDestino,
+    mimeType: mimeType,
+    parents: [folderId]
+  };
+  
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', fileBlob);
+  
+  const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + TOKEN },
+    body: form
   });
   
-  if(!result||!result.ok){
-    throw new Error(result?.error||'upload falhou');
+  if (!uploadRes.ok) {
+    const errorText = await uploadRes.text();
+    throw new Error('Upload falhou: ' + errorText);
   }
   
-  return result;
+  const resultData = await uploadRes.json();
+  return { ok: true, id: resultData.id };
 }
 
 function closeD(){document.getElementById('drawer').classList.remove('open');document.getElementById('ov').classList.remove('open');COS=null;EDIT_MODE=false;}
