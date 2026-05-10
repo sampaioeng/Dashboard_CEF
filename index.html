@@ -883,7 +883,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
         <p>Arraste o <strong>.txt</strong> do e-mail de convocação ou <strong>clique para selecionar</strong></p>
         <p style="margin-top:4px;font-size:11px;opacity:.6">Os campos serão preenchidos automaticamente</p>
       </div>
-      <input type="file" id="txt-file-input" accept=".txt" onchange="handleTxtFile(this.files[0])">
+      <input type="file" id="txt-file-input" accept=".txt, .TXT, .txt_, .TXT_, text/plain" onchange="handleTxtFile(this.files[0])">
 
       <div class="fg">
         <div class="ff"><label>Atividade</label><select id="na" onchange="onAtv()"><option value="">Selecione...</option></select></div>
@@ -2575,7 +2575,7 @@ async function renderSubs(oid,onm,pf,ld,ct,pt,fl,wn,ros){
 }
 async function loadContatoTxt(folderId, ros){
   try{
-    const res=await gapi.client.drive.files.list({q:`'${folderId}' in parents and name contains '.txt' and trashed=false`,fields:'files(id,name)',pageSize:5});
+    const res=await gapi.client.drive.files.list({q:`'${folderId}' in parents and (name contains '.txt' or name contains '.TXT') and trashed=false`,fields:'files(id,name)',pageSize:5});
     const txts=res.result.files||[];if(!txts.length)return;
     const resp=await fetch(`https://www.googleapis.com/drive/v3/files/${txts[0].id}?alt=media`,{headers:{Authorization:`Bearer ${TOKEN}`}});
     if(!resp.ok)return;const txt=await resp.text();
@@ -2590,7 +2590,7 @@ async function loadContatoTxt(folderId, ros){
 }
 async function loadContatoTxtDireto(osFolderId, ros, fl){
   try{
-    const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and name contains '.txt' and trashed=false`,fields:'files(id,name,webViewLink)',pageSize:10});
+    const res=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and (name contains '.txt' or name contains '.TXT') and trashed=false`,fields:'files(id,name,webViewLink)',pageSize:10});
     const txts=res.result.files||[];
     // Insere txts no topo da lista de pastas (fl)
     if(fl&&txts.length){
