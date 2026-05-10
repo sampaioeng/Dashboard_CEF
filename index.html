@@ -2192,10 +2192,17 @@ async function acharPasta02Documentos(os){
     if(!r2.result.files.length)return null;
     const osFolderId=r2.result.files[0].id;
     
-    // Subpasta "02 - Documentos"
-    const r3=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false and name contains 'Documentação'`,fields:'files(id,name)',pageSize:5});
-    if(!r3.result.files.length)return null;
-    return r3.result.files[0].id;
+
+    // Subpasta "Documentos" (variantes: "2 - Documentos", "Documentação", "Documento", etc)
+    const r3=await gapi.client.drive.files.list({q:`'${osFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,fields:'files(id,name)',pageSize:50});
+    const subfolders=r3.result.files||[];
+    // Filtra pelo nome contendo "doc"
+    const docFolder=subfolders.find(f => {
+      const lower = f.name.toLowerCase();
+      return lower.includes('document');
+    });
+    if(!docFolder)return null;
+    return docFolder.id;
   }catch(e){console.error('acharPasta02Documentos:',e);return null;}
 }
 
