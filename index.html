@@ -2244,14 +2244,15 @@ async function uploadDocumentoParaDrive(doc, nomeDestino, folderId) {
   };
   
   const boundary = '-------314159265358979323846';
-  const delimiter = '\r\n--' + boundary + '\r\n';
+  const first_delimiter = '--' + boundary + '\r\n';
+  const part_delimiter = '\r\n--' + boundary + '\r\n';
   const close_delim = '\r\n--' + boundary + '--';
   
   const multipartRequestBody =
-    delimiter +
+    first_delimiter +
     'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
     JSON.stringify(metadata) +
-    delimiter +
+    part_delimiter +
     'Content-Type: ' + mimeType + '\r\n' +
     'Content-Transfer-Encoding: base64\r\n\r\n' +
     doc.bytes +
@@ -2466,14 +2467,15 @@ async function gerarComprovante(){
     };
     
     const boundary = '-------314159265358979323846';
-    const delimiter = '\r\n--' + boundary + '\r\n';
+    const first_delimiter = '--' + boundary + '\r\n';
+    const part_delimiter = '\r\n--' + boundary + '\r\n';
     const close_delim = '\r\n--' + boundary + '--';
     
     const multipartBlob = new Blob([
-      delimiter,
+      first_delimiter,
       'Content-Type: application/json; charset=UTF-8\r\n\r\n',
       JSON.stringify(metadata),
-      delimiter,
+      part_delimiter,
       'Content-Type: application/pdf\r\n\r\n',
       pdfBytes,
       close_delim
@@ -2671,14 +2673,15 @@ async function criarPastasDrive(item,atv,osp,mes){
       const nomeArquivo=osp+'.txt'; // Nome: número da OS sem pontos e barras
       const metadata={name:nomeArquivo,mimeType:'text/plain',parents:[convocacaoFolderId]};
       const boundary = '-------314159265358979323846';
-      const delimiter = '\r\n--' + boundary + '\r\n';
+      const first_delimiter = '--' + boundary + '\r\n';
+      const part_delimiter = '\r\n--' + boundary + '\r\n';
       const close_delim = '\r\n--' + boundary + '--';
       
       const multipartBlob = new Blob([
-        delimiter,
+        first_delimiter,
         'Content-Type: application/json; charset=UTF-8\r\n\r\n',
         JSON.stringify(metadata),
-        delimiter,
+        part_delimiter,
         'Content-Type: text/plain\r\n\r\n',
         TXT_FILE_CONVOCACAO,
         close_delim
