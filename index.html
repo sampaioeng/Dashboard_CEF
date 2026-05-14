@@ -598,6 +598,10 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
     <span class="tip">Nova OS</span>
   </button>
+  <button class="nav-ico" id="ico-config" onclick="abrirConfig()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    <span class="tip">Configurações</span>
+  </button>
   <div class="split-wrap" style="margin-left:6px">
     <button class="nav-ico" id="btn-split" onclick="toggleSplitMenu(event)" title="Dividir tela">
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="1.5"/><rect x="13" y="4" width="8" height="16" rx="1.5"/></svg>
@@ -1157,7 +1161,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
       </tr>
       <tr>
         <td colspan="3" style="border:1px solid #000; border-top:none; padding:2px 4px; font-size:10.5px;">
-          Sampaio Engenharia
+          <span id="pdf-empresa">Sampaio Engenharia</span>
         </td>
       </tr>
       <tr>
@@ -1165,7 +1169,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
           Nome do Representante Técnico presente na<br>vistoria:
         </td>
         <td colspan="2" rowspan="2" style="border:1px solid #000; border-top:none; padding:2px 4px; font-size:10.5px; vertical-align:top;">
-          Daniel Luiz Costa e Silva
+          <span id="pdf-resp">Daniel Luiz Costa e Silva</span>
         </td>
       </tr>
       <tr>
@@ -1178,7 +1182,7 @@ body.light-mode .wpp-msg-body{background:#e5ddd5;color:#111;border:1px solid rgb
           CREA/CAU:
         </td>
         <td style="border:1px solid #000; border-top:none; padding:2px 4px; width:27%; font-size:10.5px;">
-          2020101093
+          <span id="pdf-crea">2020101093</span>
         </td>
       </tr>
       <tr>
@@ -1279,7 +1283,7 @@ Object.keys(STCFG).forEach(st => {
 });
 const POLO_CORES={'Campos Dos Goytacazes':'#1a6b2a','Rio De Janeiro':'#1a5a9e','Volta Redonda':'#b85c15'};
 const MES_MAP={'jan':'01','fev':'02','mar':'03','abr':'04','mai':'05','jun':'06','jul':'07','ago':'08','set':'09','out':'10','nov':'11','dez':'12'};
-const MES_ORD=['jan-25','fev-25','mar-25','abr-25','mai-25','jun-25','jul-25','ago-25','set-25','out-25','nov-25','dez-25','jan-26','fev-26','mar-26','abr-26','mai-26','jun-26'];
+const MES_ORD=(()=>{const m=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];const out=[];for(let y=24;y<=30;y++)for(let i=0;i<12;i++)out.push(m[i]+'-'+String(y).padStart(2,'0'));return out;})();
 const FILTER_FIELDS=[
   {key:'os',label:'Número OS',type:'text'},
   {key:'item',label:'Demanda #',type:'text'},
@@ -1365,7 +1369,24 @@ const fmtK=v=>{if(v>=1e6)return'R$ '+(v/1e6).toFixed(2).replace('.',',')+'M';if(
 const pBRL=v=>{if(!v)return 0;const n=String(v).replace(/R\$\s*/,'').replace(/\./g,'').replace(',','.');const f=parseFloat(n);return isNaN(f)?0:f;};
 const MOS_ORD_IDX=m=>MES_ORD.indexOf(m)<0?99:MES_ORD.indexOf(m);
 function getMesAtual(){const now=new Date();const m=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];return m[now.getMonth()]+'-'+String(now.getFullYear()).slice(2);}
-function normalizaMes(m){if(!m)return'';const s=String(m).trim().replace('.','');if(/^\d{4}-\d{2}$/.test(s)){const[ano,mes]=s.split('-');const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];const idx=parseInt(mes,10)-1;if(idx>=0&&idx<12)return meses[idx]+'-'+ano.slice(2);}if(/^[a-z]{3}-\d{4}$/i.test(s)){const[mes,ano]=s.split('-');return mes.toLowerCase()+'-'+ano.slice(2);}return s;}
+function normalizaMes(m){
+  if(!m)return'';
+  const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const s=String(m).trim().replace(/\./g,'').toLowerCase();
+  if(!s)return'';
+  let mat;
+  if(mat=s.match(/^([a-z]{3})[-\/](\d{2}|\d{4})$/)){const i=meses.indexOf(mat[1]);if(i>=0)return meses[i]+'-'+mat[2].slice(-2);}
+  if(mat=s.match(/^(\d{4})[-\/](\d{1,2})$/)){const i=parseInt(mat[2],10)-1;if(i>=0&&i<12)return meses[i]+'-'+mat[1].slice(-2);}
+  if(mat=s.match(/^(\d{1,2})[-\/](\d{4})$/)){const i=parseInt(mat[1],10)-1;if(i>=0&&i<12)return meses[i]+'-'+mat[2].slice(-2);}
+  if(mat=s.match(/^(\d{2})[-\/](\d{2})$/)){
+    const a=parseInt(mat[1],10),b=parseInt(mat[2],10);
+    if(a>12&&b>=1&&b<=12)return meses[b-1]+'-'+mat[1];
+    if(b>12&&a>=1&&a<=12)return meses[a-1]+'-'+mat[2];
+    if(a>=1&&a<=12)return meses[a-1]+'-'+mat[2];
+  }
+  if(mat=s.match(/^\d{1,2}[-\/](\d{1,2})[-\/](\d{4})$/)){const i=parseInt(mat[1],10)-1;if(i>=0&&i<12)return meses[i]+'-'+mat[2].slice(-2);}
+  return s;
+}
 function converterMesParaSalvar(m){if(!m)return'';const s=String(m).trim();if(/^\d{4}-\d{2}$/.test(s)){const[ano,mes]=s.split('-');const meses=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];const idx=parseInt(mes,10)-1;if(idx>=0&&idx<12)return meses[idx]+'-'+ano.slice(2);}return s;}
 function normalizaDataEntrega(d){if(!d)return'';const s=String(d).trim();if(/^\d{4}-\d{2}-\d{2}$/.test(s)){const[ano,mes,dia]=s.split('-');return`${dia}/${mes}/${ano}`;}if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){return s;}return s;}
 function parseRow(r,i){return{ri:i+2,item:P(r[0]),os:P(r[1]),osp:P(r[1]),aceita:B(r[2]),atv:P(r[3]),tv:P(r[4]),mun:P(r[5]),bairro:P(r[6]),tip:P(r[7]),end:P(r[8]),area:P(r[9]),mes:normalizaMes(P(r[10])),siopi:normalizaDataEntrega(P(r[12])),pept:B(r[13]),ent:normalizaDataEntrega(P(r[14])),vis:B(r[15]),lau:B(r[16]),fich:false,vos:pBRL(r[17]),vd:pBRL(r[18]),vt:pBRL(r[19]),st:P(r[20]),va:pBRL(r[21]),rsm:P(r[22]),rev:B(r[23]),abr:P(r[24]),prz:P(r[25]),polo:'',cep:P(r[26]),ord:P(r[0])};}
@@ -1391,6 +1412,45 @@ function isNaoVistoriada(r){
 function isParaRota(r){
   return['Sem vistoria - não agendado','Sem vistoria - agendado','OS não Vistoriada com PEPT'].includes(r.st);
 }
+// ----------------------------------------------------------------------------------------------------
+//  CONFIGURAÇÕES (LOCALSTORAGE)
+// ----------------------------------------------------------------------------------------------------
+let CONFIG_USER = {
+  emp: 'Sampaio Engenharia',
+  resp: 'Daniel Luiz Costa e Silva',
+  crea: '2020101093',
+  msg_av: '{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro da Caixa responsável pela vistoria de avaliações imobiliárias.\nEstou entrando em contato a respeito da Ordem de Serviço nº {{osNum}}, referente ao imóvel localizado na {{endereco}}. Gostaria de agendar a vistoria para {{data}}, entre {{hora}} hrs.\n\nRessalto que, por estar em rota atendendo outras demandas, não consigo fixar um horário exato.\nSe possível, peço que me envie a localização do imóvel (via link) para facilitar o deslocamento.\n\nSolicitamos se possível o envio do anúncio do imóvel.\n\nAtenciosamente,\n{{resp}}\nEngenheiro – Avaliações Imobiliárias',
+  msg_med: '{{saudacao}}\n\nQuem fala é o {{resp}}, engenheiro da Caixa responsável pela vistoria de medição de obras.\nEstou entrando em contato a respeito da Ordem de Serviço nº {{osNum}}, referente ao imóvel localizado na {{endereco}}.\nGostaria de agendar a vistoria para o dia {{data}}, no período entre {{hora}} horas.\nRessalto que, por estar em rota atendendo outras demandas, não consigo fixar um horário exato.\nSe possível, peço que me envie a localização do imóvel (via link) para facilitar o deslocamento.\n\nAtenciosamente,\n{{resp}}\nEngenheiro – Medições de obras'
+};
+
+function carregarConfig() {
+  const saved = localStorage.getItem('DanthiCfg');
+  if (saved) {
+    try { CONFIG_USER = { ...CONFIG_USER, ...JSON.parse(saved) }; } catch(e){}
+  }
+}
+
+function abrirConfig() {
+  document.getElementById('cfg-emp').value = CONFIG_USER.emp;
+  document.getElementById('cfg-resp').value = CONFIG_USER.resp;
+  document.getElementById('cfg-crea').value = CONFIG_USER.crea;
+  document.getElementById('cfg-msg-av').value = CONFIG_USER.msg_av;
+  document.getElementById('cfg-msg-med').value = CONFIG_USER.msg_med;
+  document.getElementById('modal-config').style.display = 'flex';
+}
+
+function salvarConfig() {
+  CONFIG_USER.emp = document.getElementById('cfg-emp').value;
+  CONFIG_USER.resp = document.getElementById('cfg-resp').value;
+  CONFIG_USER.crea = document.getElementById('cfg-crea').value;
+  CONFIG_USER.msg_av = document.getElementById('cfg-msg-av').value;
+  CONFIG_USER.msg_med = document.getElementById('cfg-msg-med').value;
+  localStorage.setItem('DanthiCfg', JSON.stringify(CONFIG_USER));
+  document.getElementById('modal-config').style.display = 'none';
+  showToast('Configurações salvas!');
+  if(TAB === 'agenda' && AGENDA_SEL) updAgMsg();
+}
+
 function prazoStatus(r){
   if(!r.ent||['OS Concluída','OS Cancelada'].includes(r.st))return null;
   const parts=r.ent.split('/');if(parts.length!==3)return null;
@@ -3850,16 +3910,17 @@ function updateAgendaPreview(){
   const osNum = AGENDA_SEL.os; // Número completo da OS incluindo /2026.01.01
   const end = `${AGENDA_SEL.end}, ${AGENDA_SEL.bairro}, ${nMun(AGENDA_SEL.mun)}`;
   
-  let msg='';
-  if(AGENDA_TEMPLATE==='vistoria'){
-    msg = `${saudacao}\n\nQuem fala é o Daniel, engenheiro da Caixa responsável pela vistoria de avaliações imobiliárias.\nEstou entrando em contato a respeito da Ordem de Serviço nº ${osNum}, referente ao imóvel localizado na ${end}. Gostaria de agendar a vistoria para ${dStr}, entre ${hStr} hrs.\n\nRessalto que, por estar em rota atendendo outras demandas, não consigo fixar um horário exato.\nSe possível, peço que me envie a localização do imóvel (via link) para facilitar o deslocamento.\n\nSolicitamos se possível o envio do anúncio do imóvel.`;
-  }else{
-    msg = `${saudacao}\n\nQuem fala é o Daniel, engenheiro da Caixa responsável pela vistoria de medição de obras.\nEstou entrando em contato a respeito da Ordem de Serviço nº ${osNum}, referente ao imóvel localizado na ${end}.\nGostaria de agendar a vistoria para o dia ${dStr}, no período entre ${hStr} horas.\nRessalto que, por estar em rota atendendo outras demandas, não consigo fixar um horário exato.\nSe possível, peço que me envie a localização do imóvel (via link) para facilitar o deslocamento.`;
-  }
+  let templateText = AGENDA_TEMPLATE === 'vistoria' ? CONFIG_USER.msg_av : CONFIG_USER.msg_med;
   
+  let msg = templateText
+    .replace(/\{\{saudacao\}\}/g, saudacao)
+    .replace(/\{\{osNum\}\}/g, osNum)
+    .replace(/\{\{endereco\}\}/g, end)
+    .replace(/\{\{data\}\}/g, dStr)
+    .replace(/\{\{hora\}\}/g, hStr)
+    .replace(/\{\{resp\}\}/g, CONFIG_USER.resp);
+    
   if(aviso) msg+='\n\nAlém disso, há algum procedimento específico para acesso ao local? (Por exemplo: abaixar vidros, ligar alerta, luz de salão, passar por barricadas etc.)\nAgradeço desde já pela atenção e colaboração.';
-  
-  msg += '\nAtenciosamente,\nDaniel\nEngenheiro – ' + (AGENDA_TEMPLATE==='vistoria' ? 'Avaliações Imobiliárias' : 'Medições de obras');
   
   prev.textContent=msg;
 }
@@ -3902,6 +3963,12 @@ async function gerarComprovantePDF(){
   
   document.getElementById('pdf-data').textContent=dataInput;
   document.getElementById('pdf-os').textContent=AGENDA_SEL.os||'';
+  
+  // Inject configurations
+  document.getElementById('pdf-empresa').textContent = CONFIG_USER.emp;
+  document.getElementById('pdf-resp').textContent = CONFIG_USER.resp;
+  document.getElementById('pdf-crea').textContent = CONFIG_USER.crea;
+  
   if(typeof image1B64 !== "undefined") document.getElementById('pdf-img1').src = image1B64;
   if(typeof image2B64 !== "undefined") document.getElementById('pdf-img2').src = image2B64;
   else if(typeof image4B64 !== "undefined") document.getElementById('pdf-img2').src = image4B64;
@@ -4078,6 +4145,42 @@ async function batchUpdateCeps() {
 
 
 <!-- Modal de correção de endereço -->
+<div id="modal-config" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:var(--mica-bg);border:1px solid var(--mica-border);border-radius:12px;padding:24px;width:90%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
+    <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:16px">⚙️ Configurações Gerais</div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Nome da Empresa</div>
+        <input id="cfg-emp" type="text" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;box-sizing:border-box">
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Responsável Técnico</div>
+        <input id="cfg-resp" type="text" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;box-sizing:border-box">
+      </div>
+      <div style="grid-column:1 / -1">
+        <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">CREA / CAU</div>
+        <input id="cfg-crea" type="text" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:12px;box-sizing:border-box">
+      </div>
+    </div>
+    
+    <hr style="border:none;border-top:1px solid var(--mica-border-light);margin-bottom:16px">
+    
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">WhatsApp: Vistoria de Avaliação</div>
+    <textarea id="cfg-msg-av" rows="5" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:11px;margin-bottom:4px;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:16px">Chaves disponíveis: <b>{{saudacao}}</b>, <b>{{osNum}}</b>, <b>{{endereco}}</b>, <b>{{data}}</b>, <b>{{hora}}</b>, <b>{{resp}}</b></div>
+    
+    <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">WhatsApp: Vistoria de Medição</div>
+    <textarea id="cfg-msg-med" rows="5" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--mica-border);background:var(--mica-surface);color:var(--text-primary);font-size:11px;margin-bottom:4px;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="font-size:10px;color:var(--text-muted);margin-bottom:20px">Chaves disponíveis: <b>{{saudacao}}</b>, <b>{{osNum}}</b>, <b>{{endereco}}</b>, <b>{{data}}</b>, <b>{{hora}}</b>, <b>{{resp}}</b></div>
+    
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="document.getElementById('modal-config').style.display='none'" style="padding:8px 16px;border-radius:6px;border:1px solid var(--mica-border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer">Cancelar</button>
+      <button onclick="salvarConfig()" style="padding:8px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-weight:600;font-size:12px;cursor:pointer">Salvar e Aplicar</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-geo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
   <div style="background:var(--mica-bg);border:1px solid var(--mica-border);border-radius:12px;padding:24px;width:90%;max-width:460px;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
     <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:6px">📍 Endereço não localizado</div>
